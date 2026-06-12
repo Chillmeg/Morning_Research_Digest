@@ -1,0 +1,63 @@
+name: Morning Research Digest
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # 7:00am UTC daily
+  workflow_dispatch:      # allow manual trigger from GitHub UI
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_tools: "Bash,Read,Write,Edit,WebSearch,WebFetch,mcp__notionhq__API-post-page,mcp__notionhq__API-patch-page"
+          mcp_config: |
+            {
+              "mcpServers": {
+                "notionhq": {
+                  "command": "npx",
+                  "args": ["-y", "@notionhq/notion-mcp-server"],
+                  "env": {
+                    "OPENAPI_MCP_HEADERS": "{\"Authorization\": \"Bearer ${{ secrets.NOTION_API_KEY }}\", \"Notion-Version\": \"2022-06-28\"}"
+                  }
+                }
+              }
+            }
+          prompt: |
+            Today's date is $(date +%Y-%m-%d).
+
+            Search the internet for the latest news and developments relevant to
+            machine learning, computer vision, Gaussian splatting, 3D reconstruction,
+            3D modeling, and XR research from the past 24 hours.
+
+            1. Identify the most significant items: published research papers, academic
+               releases, product launches, benchmark results, and emerging trends.
+
+            2. For each item collect: title, source URL, publication date, area tags
+               (from: Gaussian Splatting, 3D Reconstruction, Machine Learning,
+               Computer Vision, XR / Spatial Computing, 3D Modeling, NeRF, Other),
+               type (Paper, Product Launch, Benchmark, Industry News, Tool / Code),
+               a 2–3 sentence summary, what's new, and why it matters.
+
+            3. Write a formatted markdown digest to digests/$(date +%Y-%m-%d).md
+               following the same structure as digests/2026-06-12.md in this repo.
+
+            4. Add each item as a new row to the Notion database with data source ID
+               33db3ae8-4f66-4663-9855-518a4bdc615c, setting all available fields.
+
+            5. Commit the markdown file and push to main:
+               git config user.email "digest-bot@users.noreply.github.com"
+               git config user.name "Morning Digest Bot"
+               git add digests/
+               git commit -m "Morning research digest $(date +%Y-%m-%d)"
+               git push origin main
+
+            If there are no significant updates, write a brief note confirming you
+            checked and found nothing noteworthy, and still commit the file.
